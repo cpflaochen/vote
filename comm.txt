@@ -1,0 +1,7 @@
+
+//将自己的资格硬币进行承诺
+import "hashes/sha256/sha256Padded";
+def main(u8[2] v)-> u32[8] {
+    u32[8] comm = sha256Padded(v);
+    return comm;
+}
