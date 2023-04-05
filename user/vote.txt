@@ -7,6 +7,7 @@ import "ecc/babyjubjubParams.code" as context;
 import "ecc/edwardsScalarMult.code" as mull;
 import "ecc/edwardsAdd" as add;
  
+
 //设置Merkle tree
 //DEPTH：Merkle tree深度，即代表选民数量的大小
 const u32 DEPTH = 12;
