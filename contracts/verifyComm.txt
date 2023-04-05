@@ -1,0 +1,17 @@
+pragma solidity ^0.8.13;
+contract commVerify{
+    //从区块链获取承诺的格式
+    bytes32[] comm_comm;
+    //获取承诺
+    function getComm() public view returns (bytes32[] memory comm){
+        return comm_comm;
+    }
+    //验证承诺
+    function Verify(string memory str, bytes32 comm) public returns(bool) {
+        bytes32 hash = keccak256(abi.encodePacked(str));   
+        if(hash == comm){           
+            comm_comm.push(comm);
+            return true;
+        } 
+    }
+}
