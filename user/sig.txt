@@ -1,0 +1,15 @@
+//候选人执行，利用自己的私钥进行签名
+import "ecc/babyjubjubParams.code" as context;
+import "ecc/edwardsScalarMult.code" as mull;
+
+const u32 c = 3;
+//候选人利用自己的私钥进行签名
+def main(bool[256] sk, field[c][2] A, field T)->field[c][2]{
+	field[c][2] mut sig = [[0,0],[0,0],[0,0]];
+	assert(T <= 5);
+	assert(T >= 3);
+	for u32 i in 0..c{
+		sig[i] = mull(sk,A[i],context());
+	}	
+    return sig;
+}
