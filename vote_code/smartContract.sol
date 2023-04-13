@@ -148,31 +148,17 @@ library Pairing {
 }
 
 //投票系统中智能合约部分的算法实现
-contract vote{ 
+contract voteSC{ 
     using Pairing for *;  
     //设置候选人数量
     uint c;
-
-    //这是获取选民资格硬币承诺的数据类型
-    bytes32 comm_comm;
-    //获取选民资格硬币承诺
-    function getComm_comm() public view returns (bytes32){
-        return comm_comm;
-    }
-
     //从区块链获取验证通过所有选民的资格硬币承诺类型
     bytes32[] comm_array;
     //获取所有选民资格硬币承诺
     function getComm() public view returns (bytes32[] memory comm){
         return comm_array;
     }
-    //生成序列号
-    bytes32 sn_array;
-    //获取序列号
-    function getSn() public view returns(bytes32){
-        return sn_array;
-    }
-    //投票密文结构体
+   //投票密文结构体
     struct voteCt{
         Pairing.G1Point Ct0;
         Pairing.G1Point Ct1;
@@ -190,13 +176,6 @@ contract vote{
         return A1_array;
     }
 
-    //从区块链获取候选人生成部分解密秘钥的数据类型
-    Pairing.G1Point[] candidateSig_array;
-    //从区块链获取候选人生成的部分解密秘钥
-    function getCandidateSig() public view returns (Pairing.G1Point[] memory candidateSig){
-        return candidateSig_array;
-    }
-
     //设置从区块链获取部分解密秘钥验证通过的数据类型
     Pairing.G1Point[] sig_array;
     //获取验证通过的部分解密秘钥函数
@@ -211,61 +190,27 @@ contract vote{
         return dk_array;
     }
 
-    //设置从区块链获取计票结果的数据类型
-    Pairing.G1Point[] t_array;
-    //获取计票结果t
-    function getTally() public view returns (Pairing.G1Point[] memory t){
-        return t_array;
-    }  
+    //设置计票结果的结构体
+     struct voteTally {
+         uint name;
+         Pairing.G1Point voteCount;
+     }
 
-//函数实现  ..............................................................
-
-    //选民将自己的资格硬币进行承诺
-    function commit(string memory o) public returns(bytes32){
-        bytes32 comm = keccak256(abi.encodePacked(o));
-        comm_comm = comm;
-        return comm;
-    }
+    //设置从区块链获取计票结果
+     voteTally[] public t_array;
+  
+//智能合约函数实现  ..............................................................
+    
     //验证资格硬币承诺的有效性
-    function commVerify(string memory str) public returns(bool) {
+    function commVerify(string memory str, bytes32 comm) public returns(bool) {
         bytes32 hash = keccak256(abi.encodePacked(str));   
-        if(hash == comm_comm){           
-            comm_array.push(comm_comm);
+        if(hash == comm){           
+            comm_array.push(comm);
             return true;
         } 
     }
-    //选民进行投票
-    function voteEncryption(string memory coin, uint[] memory voteArra, uint candidateNum,Pairing.G1Point[] memory g1, uint[] memory r, Pairing.G1Point[] memory pk) public returns(bytes32, voteCt[] memory){
-        //奖候选人数量设为全局变量
-        c = candidateNum;
-        //生成序列号sn
-        bytes32 sn = keccak256(abi.encodePacked(coin));
-        sn_array = sn;
 
-        //判断投票向量是否满足投票规则，例子是选民只能投一个候选人
-        uint sum = 0;
-        for(uint i = 0; i < voteArra.length; i++){
-            if(voteArra[i] == 1 || voteArra[i] == 0){
-                sum += voteArra[i];
-            }else{
-                require(true, "The voting vector does not satisfy the voting rule.");
-            }
-        }
-        require(sum != 1,"The voting vector does not satisfy the voting rule.");
-
-        //加密投票
-        for(uint i = 0; i < c; i++){
-            Pairing.G1Point memory ct0 = Pairing.scalar_mul(g1[i], r[i]);
-            Pairing.G1Point memory ct1 =Pairing.addition(Pairing.scalar_mul(pk[i],r[i]),Pairing.scalar_mul(g1[i], voteArra[i]));
-            voteCts.push(voteCt({
-                Ct0: ct0,
-                Ct1: ct1
-            }));
-        }
-        return (sn, voteCts);
-    }
-
-    //聚合密文函数,其中CT是密文，c是候选人数量，w是选民权重
+    //聚合密文函数
     function ctAgg(uint w) public returns (Pairing.G1Point[] memory A0, Pairing.G1Point[] memory A1){    
         Pairing.G1Point[] memory A0 = new Pairing.G1Point[](c);
         Pairing.G1Point[] memory A1 = new Pairing.G1Point[](c);
@@ -282,18 +227,8 @@ contract vote{
         return (A0, A1);
     }
 
-    //候选人生成部分解密秘钥
-    function candidateSig(uint256 sk) public returns(Pairing.G1Point[] memory sig){
-        Pairing.G1Point[] memory sig = new Pairing.G1Point[](c);
-        for(uint i = 0; i < c; i++){
-            sig[i] = Pairing.scalar_mul(A0_array[i], sk);
-            candidateSig_array.push(sig[i]);
-        }
-        return sig;
-    }
-
     //验证部分解密秘钥
-    function sigVerify(Pairing.G2Point memory g2, Pairing.G2Point[] memory vk) public returns (bool){
+    function sigVerify(Pairing.G1Point[] memory A0_array, Pairing.G2Point memory g2,Pairing.G1Point[] memory candidateSig_array, Pairing.G2Point[] memory vk) public returns (bool){
         //获得候选人数量
         bool[] memory res = new bool[](c);                                      
         for(uint i = 0; i < c; i++){
@@ -325,7 +260,10 @@ contract vote{
         //解密秘钥的整理
         for(uint i = 0; i < c; i++){
             t[i] = Pairing.addition(A1_array[i], Pairing.negate(dk_array[i]));
-            t_array.push(t[i]);
+            t_array.push(voteTally({
+                name: i,
+                voteCount: t[i]
+            }));
         }
         return t;       
     }
